@@ -17,6 +17,7 @@ export interface User {
   id: string
   name: string
   email: string
+  createdAt: number
 }
 
 export const products: Product[] = [
@@ -93,3 +94,28 @@ export const products: Product[] = [
     sizes: ["S", "M", "L", "XL"],
   },
 ]
+
+export interface Order {
+  id: string
+  userId: string
+  userName: string
+  userEmail: string
+  items: {
+    productId: string
+    productName: string
+    quantity: number
+    size: string
+    price: number
+  }[]
+  total: number
+  shippingAddress: {
+    firstName: string
+    lastName: string
+    address: string
+    city: string
+    state: string
+    zipCode: string
+    phone: string
+  }
+  createdAt: number
+}

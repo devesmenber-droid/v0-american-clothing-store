@@ -1,6 +1,8 @@
 "use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { collection, addDoc, query, where, getDocs } from "firebase/firestore"
+import { db } from "./firebase"
 import type { CartItem, Product, User } from "./store"
 
 interface CartContextType {
@@ -14,6 +16,7 @@ interface CartContextType {
   login: (email: string, password: string) => Promise<boolean>
   register: (name: string, email: string, password: string) => Promise<boolean>
   logout: () => void
+  saveOrder: (orderData: any) => Promise<void>
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -62,40 +65,78 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    const savedUsers = localStorage.getItem("users")
-    const users = savedUsers ? JSON.parse(savedUsers) : []
-    const foundUser = users.find((u: any) => u.email === email && u.password === password)
+    try {
+      const usersRef = collection(db, "users")
+      const q = query(usersRef, where("email", "==", email), where("password", "==", password))
+      const querySnapshot = await getDocs(q)
 
-    if (foundUser) {
-      const user = { id: foundUser.id, name: foundUser.name, email: foundUser.email }
-      setUser(user)
-      localStorage.setItem("user", JSON.stringify(user))
-      return true
+      if (!querySnapshot.empty) {
+        const userData = querySnapshot.docs[0].data()
+        const user = {
+          id: querySnapshot.docs[0].id,
+          name: userData.name,
+          email: userData.email,
+          createdAt: userData.createdAt,
+        }
+        setUser(user)
+        localStorage.setItem("user", JSON.stringify(user))
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error("Login error:", error)
+      return false
     }
-    return false
   }
 
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
-    const savedUsers = localStorage.getItem("users")
-    const users = savedUsers ? JSON.parse(savedUsers) : []
+    try {
+      const usersRef = collection(db, "users")
+      const q = query(usersRef, where("email", "==", email))
+      const querySnapshot = await getDocs(q)
 
-    if (users.find((u: any) => u.email === email)) {
+      if (!querySnapshot.empty) {
+        return false
+      }
+
+      const newUser = {
+        name,
+        email,
+        password,
+        createdAt: Date.now(),
+      }
+
+      const docRef = await addDoc(usersRef, newUser)
+      const user = {
+        id: docRef.id,
+        name: newUser.name,
+        email: newUser.email,
+        createdAt: newUser.createdAt,
+      }
+      setUser(user)
+      localStorage.setItem("user", JSON.stringify(user))
+      return true
+    } catch (error) {
+      console.error("Register error:", error)
       return false
     }
-
-    const newUser = { id: Date.now().toString(), name, email, password }
-    users.push(newUser)
-    localStorage.setItem("users", JSON.stringify(users))
-
-    const user = { id: newUser.id, name: newUser.name, email: newUser.email }
-    setUser(user)
-    localStorage.setItem("user", JSON.stringify(user))
-    return true
   }
 
   const logout = () => {
     setUser(null)
     localStorage.removeItem("user")
+  }
+
+  const saveOrder = async (orderData: any) => {
+    try {
+      const ordersRef = collection(db, "orders")
+      await addDoc(ordersRef, {
+        ...orderData,
+        createdAt: Date.now(),
+      })
+    } catch (error) {
+      console.error("Error saving order:", error)
+    }
   }
 
   return (
@@ -111,6 +152,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        saveOrder,
       }}
     >
       {children}

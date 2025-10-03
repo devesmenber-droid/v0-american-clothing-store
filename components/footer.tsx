@@ -47,6 +47,11 @@ export function Footer() {
                   Returns
                 </Link>
               </li>
+              <li>
+                <Link href="/admin/login" className="hover:text-foreground transition-colors">
+                  Admin
+                </Link>
+              </li>
             </ul>
           </div>
           <div>

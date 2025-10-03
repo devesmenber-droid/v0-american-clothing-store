@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Card } from "@/components/ui/card"
 
 export default function CheckoutPage() {
-  const { cart, total, clearCart, user } = useCart()
+  const { cart, total, clearCart, user, saveOrder } = useCart()
   const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -38,12 +38,43 @@ export default function CheckoutPage() {
     e.preventDefault()
     setLoading(true)
 
-    setTimeout(() => {
-      clearCart()
-      toast({ title: "Order placed successfully!" })
-      router.push("/order-confirmation")
+    try {
+      const orderData = {
+        userId: user?.id || "guest",
+        userName: `${formData.firstName} ${formData.lastName}`,
+        userEmail: formData.email,
+        items: cart.map((item) => ({
+          productId: item.id,
+          productName: item.name,
+          quantity: item.quantity,
+          size: item.size,
+          price: item.price,
+        })),
+        total: total + (total > 100 ? 0 : 9.99),
+        shippingAddress: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zipCode: formData.zipCode,
+          phone: formData.phone,
+        },
+      }
+
+      await saveOrder(orderData)
+
+      setTimeout(() => {
+        clearCart()
+        toast({ title: "Order placed successfully!" })
+        router.push("/order-confirmation")
+        setLoading(false)
+      }, 1000)
+    } catch (error) {
+      console.error("Error placing order:", error)
+      toast({ title: "Error placing order", variant: "destructive" })
       setLoading(false)
-    }, 2000)
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
